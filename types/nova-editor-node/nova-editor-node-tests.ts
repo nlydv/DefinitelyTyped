@@ -309,6 +309,10 @@ scanner.location = 42;
 
 /// https://docs.nova.app/api-reference/task/
 
+Task.Build === TaskName.Build;
+Task.Run === TaskName.Run;
+Task.Clean === TaskName.Clean;
+
 const task = new Task('Say Example');
 
 task.setAction(
@@ -334,6 +338,32 @@ task.setAction(
         env: {},
     }),
 );
+
+/// https://docs.nova.app/api-reference/task-action-resolve-context/
+
+class MyTaskAssistant implements TaskAssistant {
+    provideTasks(): AssistantArray<Task> {
+        return [];
+    }
+
+    resolveTaskAction(context: TaskActionResolveContext<any>): TaskAction {
+        const name = context.config?.get("my.extension.name", "string") ?? "untitled";
+
+        if (context.action === Task.Build) {
+            return new TaskProcessAction("/bin/echo", {
+                args: [ "building: ", name ]
+            });
+        } else if (context.action === "run" && context.data) {
+            return new TaskCommandAction("my.extension.echo", {
+                args: [ "running with data: ", context.data ]
+            });
+        } else {
+            return new TaskProcessAction("/bin/echo", {
+                args: [ "cleaning: ", name ]
+            });
+        }
+    }
+}
 
 /// https://docs.nova.app/api-reference/task-command-action/
 

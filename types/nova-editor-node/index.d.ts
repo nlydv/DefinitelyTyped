@@ -31,7 +31,7 @@ interface AssistantsRegistry {
         object: IssueAssistant,
         options?: { event: 'onChange' | 'onSave' },
     ): Disposable;
-    registerTaskAssistant(object: TaskAssistant, options?: { identifer: string; name: string }): Disposable;
+    registerTaskAssistant(object: TaskAssistant, options?: { identifier: string; name: string }): Disposable;
 }
 
 type AssistantArray<T> = ReadonlyArray<T> | Promise<ReadonlyArray<T>>;
@@ -49,13 +49,9 @@ interface IssueAssistant {
     provideIssues(editor: TextEditor): AssistantArray<Issue>;
 }
 
-type ResolvedTaskAction = TaskCommandAction | TaskProcessAction;
-
 interface TaskAssistant {
     provideTasks(): AssistantArray<Task>;
-    resolveTaskAction?<T extends Transferrable>(
-        context: TaskActionResolveContext<T>,
-    ): ResolvedTaskAction | Promise<ResolvedTaskAction>;
+    resolveTaskAction?<T extends Transferable>(context: TaskActionResolveContext<T>): TaskAction | Promise<TaskAction>;
 }
 
 /// https://docs.nova.app/api-reference/charset/
@@ -800,28 +796,35 @@ interface NovaSymbol {
 
 /// https://docs.nova.app/api-reference/task/
 
-declare type TaskName = string & { __type: 'TaskName' };
+declare enum TaskName {
+    Build = "build",
+    Clean = "clean",
+    Run = "run"
+}
 
 declare class Task {
-    static readonly Build: TaskName;
-    static readonly Clean: TaskName;
-    static readonly Run: TaskName;
+    static readonly Build = TaskName.Build;
+    static readonly Clean = TaskName.Clean;
+    static readonly Run = TaskName.Run;
 
     constructor(name: string);
 
     name: string;
     image?: string;
 
-    getAction(name: string): TaskProcessAction | undefined;
+    getAction(name: TaskName): TaskAction | undefined;
     getAction<T extends Transferrable>(name: string): TaskResolvableAction<T> | undefined;
-    setAction(name: string, action?: TaskProcessAction | null): void;
-    setAction<T extends Transferrable>(name: string, action?: TaskResolvableAction<T> | null): void;
+    setAction(name: TaskName, action?: TaskAction | null): void;
+    setAction<T extends Transferrable>(name: TaskName, action?: TaskResolvableAction<T> | null): void;
 }
+
+type TaskAction = TaskCommandAction | TaskProcessAction;
 
 /// https://docs.nova.app/api-reference/task-action-resolve-context/
 
-interface TaskActionResolveContext<T extends Transferrable> {
-    action: TaskName;
+interface TaskActionResolveContext<T extends Transferable> {
+    readonly action: TaskName;
+    readonly config?: Configuration;
     readonly data?: T;
 }
 
@@ -847,6 +850,12 @@ declare class TaskProcessAction {
             matchers?: ReadonlyArray<string>;
         },
     );
+
+    readonly args: string[];
+    readonly command: string;
+    readonly cwd: string;
+    readonly env: { [key: string]: string };
+    readonly matchers: ReadonlyArray<string>;
 }
 
 /// https://docs.nova.app/api-reference/task-resolvable-action/
